@@ -6,7 +6,7 @@
   "orientation": "any",
   "scope": "/",
   "short_name": "yngvee1.github",
-  "start_url": "/https://yngvee1.github.io/detektorground/",
+  "start_url": "/detektorground/",
   "theme_color": "#a57b7b",
   "id": "DETEKTORGROUND app",
   "description": "App for feltarbeid",
