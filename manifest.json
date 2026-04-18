@@ -1,21 +1,16 @@
 {
-  "name": "Detektorground",
-  "short_name": "Detektor",
-  "start_url": "./",
+  "background_color": "#d06767",
+  "dir": "auto",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+  "name": "yngvee1.github",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "yngvee1.github",
+  "start_url": "/https://yngvee1.github.io/detektorground/",
+  "theme_color": "#a57b7b",
+  "id": "DETEKTORGROUND app",
+  "description": "App for feltarbeid",
+  "categories": [
+    "social"
   ]
 }
