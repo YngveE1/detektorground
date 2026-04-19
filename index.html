@@ -10,10 +10,20 @@
 <meta name="apple-mobile-web-app-title" content="DETEKTORGROUND">
 <title>DETEKTORGROUND</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Stardos+Stencil:wght@400;700&family=Allerta+Stencil&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
+  /* === GLOBAL STENCIL FONT OVERRIDE === */
+  html, body, button, input, select, textarea, .leaflet-container,
+  h1, h2, h3, h4, h5, h6, p, span, div, label, a, li, td, th {
+      font-family: 'Stardos Stencil', 'Allerta Stencil', 'Share Tech Mono', monospace !important;
+      letter-spacing: 0.02em;
+  }
+  code, pre, .mono, [class*="mono"] {
+      font-family: 'Share Tech Mono', monospace !important;
+  }
+  /* === END STENCIL OVERRIDE === */
 :root {
   --bg:#000; --bg2:#0a0a0a; --bg3:#141414; --bg4:#1e1e1e;
   --accent:#39FF14; --accent2:#22cc08; --accent3:#0d4d05;
