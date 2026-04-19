@@ -923,6 +923,117 @@ function toast(msg){
   const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2400);
 }
+
+  /* === READABILITY + TORCH PATCH (v2) === */
+  (function(){
+      // Inject larger-font CSS for form fields
+      var css = `
+          .fld { margin-bottom: 18px !important; }
+              .fld label {
+                    font-size: 0.95rem !important;
+                          letter-spacing: 0.1em !important;
+                                margin-bottom: 8px !important;
+                                      font-weight: 700 !important;
+                                          }
+                                              input[type=text], input[type=number], input[type=password],
+                                                  input[type=email], input[type=tel], input[type=date],
+                                                      input[type=time], input[type=datetime-local],
+                                                          textarea, select {
+                                                                font-size: 1.15rem !important;
+                                                                      padding: 14px 14px !important;
+                                                                            min-height: 52px !important;
+                                                                                  line-height: 1.4 !important;
+                                                                                      }
+                                                                                          textarea { min-height: 110px !important; }
+                                                                                              .sec h2, .sec-title { font-size: 1.15rem !important; }
+                                                                                                  .btn-p { font-size: 1.1rem !important; padding: 16px !important; }
+                                                                                                      .tog-lbl { font-size: 1rem !important; }
+                                                                                                          .tog-sub { font-size: 0.85rem !important; }
+                                                                                                              .nav-btn { font-size: 0.8rem !important; }
+                                                                                                                  body, html { font-size: 17px !important; }
+                                                                                                                    `;
+      var style = document.createElement('style');
+      style.id = 'readability-patch';
+      style.textContent = css;
+      document.head.appendChild(style);
+
+      // Robust torch implementation - keeps stream/track references on window
+      window.__torch = { stream: null, track: null, on: false };
+
+      async function torchOn(){
+            var md = navigator.mediaDevices;
+            if(!md || !md.getUserMedia){ throw new Error('no media'); }
+            var s = await md.getUserMedia({
+                    video: { facingMode: { exact: 'environment' } },
+                    audio: false
+            }).catch(function(){
+                    return md.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+            });
+            var tr = s.getVideoTracks()[0];
+            var caps = tr.getCapabilities ? tr.getCapabilities() : {};
+            if(!caps.torch){
+                    try{ s.getTracks().forEach(function(t){t.stop();}); }catch(e){}
+                    throw new Error('Lommelykt ikke støttet på dette kameraet');
+            }
+            await tr.applyConstraints({ advanced: [{ torch: true }] });
+            window.__torch.stream = s;
+            window.__torch.track = tr;
+            window.__torch.on = true;
+      }
+
+      async function torchOff(){
+            try{
+                    if(window.__torch.track){
+                              try{ await window.__torch.track.applyConstraints({ advanced: [{ torch: false }] }); }catch(e){}
+                    }
+                    if(window.__torch.stream){
+                              window.__torch.stream.getTracks().forEach(function(t){ try{t.stop();}catch(e){} });
+                    }
+            } finally {
+                    window.__torch.stream = null;
+                    window.__torch.track = null;
+                    window.__torch.on = false;
+            }
+      }
+
+      window.toggleTorch = async function(){
+            try {
+                    if(!window.__torch.on){
+                              await torchOn();
+                    } else {
+                              await torchOff();
+                    }
+                    if(typeof S !== 'undefined'){ S.torchOn = window.__torch.on; }
+                    var b1 = document.getElementById('torch-btn');
+                    var b2 = document.getElementById('tog-torch');
+                    if(b1) b1.classList.toggle('active', window.__torch.on);
+                    if(b2) b2.classList.toggle('on', window.__torch.on);
+            } catch(err){
+                    if(typeof toast === 'function'){
+                              toast(err && err.message ? err.message : 'Lommelykt ikke tilgjengelig');
+                    } else {
+                              alert(err && err.message ? err.message : 'Lommelykt ikke tilgjengelig');
+                    }
+                    // reset UI
+                    var b1 = document.getElementById('torch-btn');
+                    var b2 = document.getElementById('tog-torch');
+                    if(b1) b1.classList.remove('active');
+                    if(b2) b2.classList.remove('on');
+                    if(typeof S !== 'undefined'){ S.torchOn = false; }
+            }
+      };
+
+      // Turn off torch if page hidden (e.g. app backgrounded) to release camera
+      document.addEventListener('visibilitychange', function(){
+            if(document.hidden && window.__torch.on){ torchOff().catch(function(){}); 
+                                                           var b1=document.getElementById('torch-btn'); var b2=document.getElementById('tog-torch');
+                                                           if(b1) b1.classList.remove('active'); if(b2) b2.classList.remove('on');
+                                                           if(typeof S !== 'undefined'){ S.torchOn = false; }
+                                                    }
+      });
+  })();
+  /* === END PATCH === */
+  
 </script>
 </body>
 </html>
