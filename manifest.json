@@ -1,32 +1,32 @@
 {
-    "name": "Detektorground",
-    "short_name": "Detektor",
-    "description": "App for feltarbeid",
-    "start_url": "/detektorground/",
-    "scope": "/detektorground/",
-    "display": "standalone",
-    "orientation": "portrait",
-    "background_color": "#000000",
-    "theme_color": "#000000",
-    "id": "detektorground-app",
-    "icons": [
-          {
-                  "src": "icon192.png",
-                  "sizes": "192x192",
-                  "type": "image/png",
-                  "purpose": "any"
-          },
-          {
-                  "src": "icon512.png",
-                  "sizes": "512x512",
-                  "type": "image/png",
-                  "purpose": "any"
-          },
-          {
-                  "src": "icon512.png",
-                  "sizes": "512x512",
-                  "type": "image/png",
-                  "purpose": "maskable"
-          }
-    ]
+      "name": "Detektor Ground App 1",
+      "short_name": "Detektor",
+      "description": "App for feltarbeid",
+      "start_url": "/detektorground/",
+      "scope": "/detektorground/",
+      "display": "standalone",
+      "orientation": "portrait",
+      "background_color": "#000000",
+      "theme_color": "#000000",
+      "id": "detektorground-app",
+      "icons": [
+              {
+                        "src": "icon192.png",
+                        "sizes": "192x192",
+                        "type": "image/png",
+                        "purpose": "any"
+              },
+              {
+                        "src": "icon512.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "any"
+              },
+              {
+                        "src": "icon512.png",
+                        "sizes": "512x512",
+                        "type": "image/png",
+                        "purpose": "maskable"
+              }
+      ]
 }
