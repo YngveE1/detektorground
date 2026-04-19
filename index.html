@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="nb">
 <link rel="manifest" href="/detektorground/manifest.json">
+<link rel="apple-touch-icon" href="/detektorground/icon192.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/detektorground/icon192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="/detektorground/icon512.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#000000">
@@ -924,116 +927,235 @@ function toast(msg){
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2400);
 }
 
-  /* === READABILITY + TORCH PATCH (v2) === */
+/* === PATCH v5 === */
   (function(){
-      // Inject larger-font CSS for form fields
-      var css = `
-          .fld { margin-bottom: 18px !important; }
-              .fld label {
-                    font-size: 0.95rem !important;
-                          letter-spacing: 0.1em !important;
-                                margin-bottom: 8px !important;
-                                      font-weight: 700 !important;
-                                          }
-                                              input[type=text], input[type=number], input[type=password],
-                                                  input[type=email], input[type=tel], input[type=date],
-                                                      input[type=time], input[type=datetime-local],
-                                                          textarea, select {
-                                                                font-size: 1.15rem !important;
-                                                                      padding: 14px 14px !important;
-                                                                            min-height: 52px !important;
-                                                                                  line-height: 1.4 !important;
-                                                                                      }
-                                                                                          textarea { min-height: 110px !important; }
-                                                                                              .sec h2, .sec-title { font-size: 1.15rem !important; }
-                                                                                                  .btn-p { font-size: 1.1rem !important; padding: 16px !important; }
-                                                                                                      .tog-lbl { font-size: 1rem !important; }
-                                                                                                          .tog-sub { font-size: 0.85rem !important; }
-                                                                                                              .nav-btn { font-size: 0.8rem !important; }
-                                                                                                                  body, html { font-size: 17px !important; }
-                                                                                                                    `;
-      var style = document.createElement('style');
-      style.id = 'readability-patch';
-      style.textContent = css;
-      document.head.appendChild(style);
+    'use strict';
+    function $(id){return document.getElementById(id);}
+    function log(){try{console.log.apply(console,['[DG]'].concat([].slice.call(arguments)));}catch(e){}}
 
-      // Robust torch implementation - keeps stream/track references on window
-      window.__torch = { stream: null, track: null, on: false };
+    // -------- READABILITY (larger fonts for +1 reading glasses) --------
+    try {
+      var st = document.createElement('style');
+      st.textContent = [
+        'input, select, textarea { font-size: 1.2rem !important; padding: 14px !important; min-height: 54px !important; }',
+        'label { font-size: 1rem !important; margin-bottom: 6px !important; display:block; }',
+        '.field, .form-row, .row { margin-bottom: 18px !important; }',
+        'button { font-size: 1.05rem !important; }',
+        '#funnListe .funn-item, .funn-item { padding: 10px; border: 1px solid #2a2; margin: 6px 0; background: rgba(0,40,0,0.3); font-size: 0.95rem; }',
+        '.funn-item img { max-width: 100%; border: 1px solid #2a2; margin-top: 6px; }'
+      ].join('\n');
+      document.head.appendChild(st);
+    } catch(e){ log('css err',e); }
 
-      async function torchOn(){
-            var md = navigator.mediaDevices;
-            if(!md || !md.getUserMedia){ throw new Error('no media'); }
-            var s = await md.getUserMedia({
-                    video: { facingMode: { exact: 'environment' } },
-                    audio: false
-            }).catch(function(){
-                    return md.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-            });
-            var tr = s.getVideoTracks()[0];
-            var caps = tr.getCapabilities ? tr.getCapabilities() : {};
-            if(!caps.torch){
-                    try{ s.getTracks().forEach(function(t){t.stop();}); }catch(e){}
-                    throw new Error('Lommelykt ikke støttet på dette kameraet');
-            }
-            await tr.applyConstraints({ advanced: [{ torch: true }] });
-            window.__torch.stream = s;
-            window.__torch.track = tr;
-            window.__torch.on = true;
+    // -------- TORCH (flashlight) robust workaround --------
+    window.__torch = window.__torch || { stream:null, track:null, on:false };
+
+    async function ensureTorchTrack(){
+      var T = window.__torch;
+      if (T.track && !T.track.readyState) T.track = null;
+      if (T.track && T.track.readyState === 'ended') { T.track = null; T.stream = null; }
+      if (T.track) return T.track;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        throw new Error('Kamera-API ikke tilgjengelig');
       }
-
-      async function torchOff(){
-            try{
-                    if(window.__torch.track){
-                              try{ await window.__torch.track.applyConstraints({ advanced: [{ torch: false }] }); }catch(e){}
-                    }
-                    if(window.__torch.stream){
-                              window.__torch.stream.getTracks().forEach(function(t){ try{t.stop();}catch(e){} });
-                    }
-            } finally {
-                    window.__torch.stream = null;
-                    window.__torch.track = null;
-                    window.__torch.on = false;
-            }
+      // Try with torch advanced constraint first, fallback to plain environment camera
+      var tryConfigs = [
+        { video: { facingMode: { exact: 'environment' }, advanced: [{ torch: true }] } },
+        { video: { facingMode: 'environment', advanced: [{ torch: true }] } },
+        { video: { facingMode: { exact: 'environment' } } },
+        { video: { facingMode: 'environment' } },
+        { video: true }
+      ];
+      var lastErr = null;
+      for (var i=0; i<tryConfigs.length; i++){
+        try {
+          var s = await navigator.mediaDevices.getUserMedia(tryConfigs[i]);
+          T.stream = s;
+          T.track = s.getVideoTracks()[0];
+          return T.track;
+        } catch(e){ lastErr = e; log('gUM cfg'+i+' failed', e && e.name); }
       }
+      throw lastErr || new Error('Kunne ikke \xe5pne kamera');
+    }
 
-      window.toggleTorch = async function(){
-            try {
-                    if(!window.__torch.on){
-                              await torchOn();
-                    } else {
-                              await torchOff();
-                    }
-                    if(typeof S !== 'undefined'){ S.torchOn = window.__torch.on; }
-                    var b1 = document.getElementById('torch-btn');
-                    var b2 = document.getElementById('tog-torch');
-                    if(b1) b1.classList.toggle('active', window.__torch.on);
-                    if(b2) b2.classList.toggle('on', window.__torch.on);
-            } catch(err){
-                    if(typeof toast === 'function'){
-                              toast(err && err.message ? err.message : 'Lommelykt ikke tilgjengelig');
-                    } else {
-                              alert(err && err.message ? err.message : 'Lommelykt ikke tilgjengelig');
-                    }
-                    // reset UI
-                    var b1 = document.getElementById('torch-btn');
-                    var b2 = document.getElementById('tog-torch');
-                    if(b1) b1.classList.remove('active');
-                    if(b2) b2.classList.remove('on');
-                    if(typeof S !== 'undefined'){ S.torchOn = false; }
+    async function setTorch(on){
+      var T = window.__torch;
+      try {
+        var track = await ensureTorchTrack();
+        var caps = track.getCapabilities ? track.getCapabilities() : {};
+        if (!('torch' in caps)) {
+          // Some devices expose torch only after applyConstraints - try anyway
+          try { await track.applyConstraints({ advanced: [{ torch: on }] }); T.on = on; return true; }
+          catch(e){ throw new Error('Enheten st\xf8tter ikke lommelykt via nettleser'); }
+        }
+        await track.applyConstraints({ advanced: [{ torch: on }] });
+        T.on = on;
+        return true;
+      } catch(e){
+        log('setTorch err', e);
+        // Release on failure
+        if (T.stream){ try{ T.stream.getTracks().forEach(function(tr){tr.stop();}); }catch(_){}
+          T.stream=null; T.track=null; T.on=false;
+        }
+        alert('Lommelykt ikke tilgjengelig: ' + (e && e.message ? e.message : 'ukjent feil'));
+        return false;
+      }
+    }
+
+    async function toggleTorch(){
+      var T = window.__torch;
+      var want = !T.on;
+      var ok = await setTorch(want);
+      var btn = $('torch-btn');
+      if (btn){
+        btn.style.background = T.on ? '#0f0' : '';
+        btn.style.color = T.on ? '#000' : '';
+      }
+      return ok;
+    }
+    window.toggleTorch = toggleTorch;
+
+    // Release torch when app hidden
+    document.addEventListener('visibilitychange', function(){
+      if (document.hidden && window.__torch.on){
+        setTorch(false);
+      }
+    });
+
+    // -------- NIGHT / DAY MODE --------
+    function applyMode(mode){
+      document.body.classList.toggle('night-mode', mode==='night');
+      document.body.classList.toggle('day-mode', mode==='day');
+      try { localStorage.setItem('dg_mode', mode); } catch(e){}
+      var btn = $('mode-btn');
+      if (btn) btn.textContent = mode==='night' ? '\u2600\ufe0f' : '\ud83c\udf19';
+      // Inject theme CSS
+      var existing = document.getElementById('dg-theme-style');
+      if (!existing){
+        existing = document.createElement('style');
+        existing.id='dg-theme-style';
+        document.head.appendChild(existing);
+      }
+      if (mode==='day'){
+        existing.textContent = 'body.day-mode { background:#f4f4e8 !important; color:#111 !important; } body.day-mode #app, body.day-mode .screen, body.day-mode #topbar { background:#f4f4e8 !important; color:#111 !important; } body.day-mode input, body.day-mode select, body.day-mode textarea { background:#fff !important; color:#111 !important; border:1px solid #555 !important; } body.day-mode button { color:#111 !important; }';
+      } else {
+        existing.textContent = '';
+      }
+    }
+    function toggleMode(){
+      var cur = 'night';
+      try { cur = localStorage.getItem('dg_mode') || 'night'; } catch(e){}
+      applyMode(cur==='night' ? 'day' : 'night');
+    }
+    window.toggleMode = toggleMode;
+
+    // -------- GEO + WATERMARK helpers --------
+    window.__lastGeo = null;
+    function startGeoWatch(){
+      if (!navigator.geolocation) return;
+      try {
+        navigator.geolocation.watchPosition(function(p){
+          window.__lastGeo = p;
+        }, function(e){ log('geo err',e); }, { enableHighAccuracy:true, maximumAge:5000, timeout:15000 });
+      } catch(e){}
+    }
+    function fmtCoord(n,dig){ return (n==null||isNaN(n))?'--':n.toFixed(dig||6); }
+    window.watermarkDataUrl = function(dataUrl){
+      return new Promise(function(resolve){
+        try {
+          var img = new Image();
+          img.onload = function(){
+            var c = document.createElement('canvas');
+            c.width = img.naturalWidth; c.height = img.naturalHeight;
+            var ctx = c.getContext('2d');
+            ctx.drawImage(img,0,0);
+            var p = window.__lastGeo && window.__lastGeo.coords;
+            var ts = new Date().toLocaleString('nb-NO');
+            var lines = [ts];
+            if (p){
+              lines.push('GPS: ' + fmtCoord(p.latitude,6) + ', ' + fmtCoord(p.longitude,6));
+              lines.push('\xb1' + fmtCoord(p.accuracy,1) + ' m');
+            } else {
+              lines.push('GPS: ikke tilgjengelig');
             }
-      };
-
-      // Turn off torch if page hidden (e.g. app backgrounded) to release camera
-      document.addEventListener('visibilitychange', function(){
-            if(document.hidden && window.__torch.on){ torchOff().catch(function(){}); 
-                                                           var b1=document.getElementById('torch-btn'); var b2=document.getElementById('tog-torch');
-                                                           if(b1) b1.classList.remove('active'); if(b2) b2.classList.remove('on');
-                                                           if(typeof S !== 'undefined'){ S.torchOn = false; }
-                                                    }
+            var fs = Math.max(18, Math.round(c.width/40));
+            ctx.font = 'bold ' + fs + 'px "Stardos Stencil", monospace';
+            var pad = Math.round(fs*0.4);
+            var lh = Math.round(fs*1.2);
+            var maxW = 0;
+            lines.forEach(function(ln){ var w=ctx.measureText(ln).width; if(w>maxW) maxW=w; });
+            var boxH = lines.length*lh + pad*2;
+            var boxW = maxW + pad*2;
+            ctx.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx.fillRect(pad, c.height - boxH - pad, boxW, boxH);
+            ctx.fillStyle = '#7CFC00';
+            ctx.textBaseline='top';
+            lines.forEach(function(ln,i){ ctx.fillText(ln, pad+pad, c.height - boxH - pad + pad + i*lh); });
+            resolve(c.toDataURL('image/jpeg', 0.9));
+          };
+          img.onerror = function(){ resolve(dataUrl); };
+          img.src = dataUrl;
+        } catch(e){ resolve(dataUrl); }
       });
+    };
+
+    // -------- FUNN list rendering fallback --------
+    function readFunnList(){
+      try {
+        var keys = ['dg_funn','detektorground_funn','funn','findings'];
+        for (var i=0;i<keys.length;i++){
+          var v = localStorage.getItem(keys[i]);
+          if (v){ try { var arr = JSON.parse(v); if (Array.isArray(arr)) return arr; } catch(e){} }
+        }
+      } catch(e){}
+      return [];
+    }
+    window.renderFunnList = function(){
+      var list = readFunnList();
+      var host = document.getElementById('funn-list') || document.getElementById('funnListe') || document.getElementById('findings-list');
+      if (!host) return;
+      if (!list.length){ host.innerHTML = '<div style="padding:10px;opacity:0.7">Ingen funn enn\xe5.</div>'; return; }
+      host.innerHTML = '';
+      list.slice().reverse().forEach(function(f){
+        var d = document.createElement('div');
+        d.className = 'funn-item';
+        var title = (f.title||f.navn||f.name||'Funn');
+        var ts = f.timestamp || f.date || f.time || '';
+        var gps = f.gps || (f.lat&&f.lon ? (f.lat+', '+f.lon) : '');
+        var img = f.photo || f.image || f.img || '';
+        d.innerHTML = '<div><b>'+title+'</b></div>'
+          + (ts?'<div>'+ts+'</div>':'')
+          + (gps?'<div>GPS: '+gps+'</div>':'')
+          + (img?'<img src="'+img+'" alt="funn"/>':'');
+        host.appendChild(d);
+      });
+    };
+
+    // -------- WIRE UP BUTTONS --------
+    function wire(){
+      var tb = $('torch-btn');
+      if (tb){
+        tb.onclick = function(ev){ ev.preventDefault(); toggleTorch(); };
+      }
+      var mb = $('mode-btn');
+      if (mb){
+        mb.onclick = function(ev){ ev.preventDefault(); toggleMode(); };
+      }
+      // Apply saved mode
+      var saved = 'night';
+      try { saved = localStorage.getItem('dg_mode') || 'night'; } catch(e){}
+      applyMode(saved);
+
+      startGeoWatch();
+      try { window.renderFunnList(); } catch(e){}
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wire);
+    } else {
+      wire();
+    }
   })();
   /* === END PATCH === */
-  
-</script>
+  </script>
 </body>
 </html>
